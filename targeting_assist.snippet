@@ -1,0 +1,138 @@
+<drac2>
+a=&ARGS&
+bypass = "bypass" in a
+if bypass:
+  return ' '.join(a)
+if ctx.alias in ["cast","i cast","a","aoo","rc"]:
+  if exists("TargetsAcquired"):
+    return
+  TargetsAcquired= True
+  c,out,ctargets,describe=combat(),[],[],[]
+  melee,distance = "close" in a,"range" in a
+  if melee and distance:
+    melee,distance = False,False
+  effdesc=load_json(get_gvar("ad19efa8-e13b-44e5-a51e-1aa74e423923"))
+  da = describe.append
+  op = out.append
+  mim = 0
+  MISS = False
+  one = "mirror image one"
+  two = "mirror image two"
+  three = "mirror image three"
+  targets=argparse(a).get('t')
+  if c:
+    for x in targets:
+      if c.get_combatant(x):
+        ctargets.append(c.get_combatant(x))   
+  for y in ctargets:
+    ADV,DIS,CRIT,acount,dcount,GADV = False,False,False,"","", False
+    for x in y.effects:
+      if "prone" in x.name.lower():
+        if melee:
+          ADV = True
+        if not melee:
+          DIS = True
+        da(f'''-f "Prone ({y.name})|{effdesc[0].desc}"''')      
+      if "paralyzed" in x.name.lower():
+        paralyzed = True    
+        ADV = True  
+        if melee:
+          CRIT = True
+        da(f'''-f "Paralyzed ({y.name})|{effdesc[1].desc}"''')
+      if "blinded" in x.name.lower():
+        da(f'''-f "Blinded ({y.name})|{effdesc[2].desc}"''')
+        ADV = True
+      if "invisible" in x.name.lower():
+        da(f'''-f "Invisible ({y.name})|{effdesc[3].desc}"''')
+        DIS = True
+      if "restrained" in x.name.lower():
+        da(f'''-f "Restrained ({y.name})|{effdesc[4].desc}"''')
+        ADV = True
+      if "stunned" in x.name.lower():
+        da(f'''-f "Stunned ({y.name})|{effdesc[5].desc}"''')
+        ADV = True
+      if "unconscious" in x.name.lower() or "asleep" in x.name.lower():
+        da(f'''-f "Unconscious ({y.name})|{effdesc[6].desc}"''')
+        ADV = True  
+        if melee:
+          CRIT = True
+      if "guiding bolt" in x.name.lower():
+        da(f'''-f "Guiding Bolt ({y.name})|{effdesc[7].desc}"''')
+        GADV = True
+        acount = "1"
+        y.remove_effect("Guiding Bolt")
+      if "marked (faerie fire)" in x.name.lower():
+        da(f'''-f "Faerie Fire ({y.name})|{effdesc[8].desc}"''')
+        ADV = True
+      if "distracted" in x.name.lower():
+        da(f'''-f "Distracted ({y.name})|Attacks made against the target are at advantage."''')
+        ADV = True
+      if "blurred" in x.name.lower():
+        da(f'''-f "Blur ({y.name})|{effdesc[9].desc}"''')
+        DIS = True
+      if "attacked recklessly" in x.name.lower():
+        da(f'''-f "Attacked Recklessly ({y.name})|{effdesc[10].desc}"''')
+        ADV = True
+      if "dodging" in x.name.lower():
+        da(f'''-f "Dodging ({y.name})|{effdesc[11].desc}"''')
+        DIS = True
+      if "sanctuary" in x.name.lower():
+        da(f'''-f "Sanctuary ({y.name})|{effdesc[12].desc}"''')
+      if one in x.name.lower():
+        da(f'''-f "Mirror Image ({y.name})|{effdesc[13].desc}"''')
+      if three in x.name.lower():
+        mim = 3
+      elif two in x.name.lower():
+        if mim == 0 or mim == 1:
+          mim = 2
+      elif one in x.name.lower():
+        if mim == 0:
+          mim = 1
+    mimroll = vroll("1d20")
+    if mim == 3:
+      if mimroll.total >= 6:
+        MISS = True
+    elif mim == 2:
+      if mimroll.total >= 8:
+        MISS = True
+    elif mim == 1:
+      if mimroll.total >= 11:
+        MISS = True
+    if MISS == True:
+      da(f'''-f "Mirror Image Targeted ({y.name})|A mirror image was targeted forcing the attack to miss. The duplicate is destroyed with an attack roll higher than {10+y.stats.get_mod("dexterity")}."''')     
+    if y.hp <= 0:
+      ADV = True
+      if melee:
+        CRIT = True
+      da(f'''-f "Unconscious ({y.name})|{effdesc[6].desc}"''')
+    if not dcount:
+      dcount =""
+    if acount and ADV:
+      acount = ""
+    if not ADV and GADV:
+      ADV = True    
+    if ADV and not DIS:
+      if CRIT:
+        op(f'''-t "{y.name}|adv{acount} crit"''')
+      else:
+        op(f'''-t "{y.name}|adv{acount}"''')
+    if DIS and not ADV:
+      if CRIT:
+        op(f'''-t "{y.name}|dis{dcount} crit"''')
+      else:
+        op(f'''-t "{y.name}|dis{dcount}"''')
+    if ADV and DIS:
+      if CRIT:
+        op(f'''-t "{y.name}|adv{acount} dis{dcount} crit"''')
+      else:
+        op(f'''-t "{y.name}|adv{acount} dis{dcount}"''')
+    if not ADV and not DIS:
+      if CRIT:
+        op(f'''-t "{y.name}|crit"''')
+      else:
+        op(f'''-t "{y.name}"''') 
+    if MISS:
+      op(f'''miss''')    
+  op(' '.join(describe))
+  return ' '.join(out)    
+</drac2>
